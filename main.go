@@ -5,23 +5,23 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net/http" // 【新增】为了获取文件大小，需要 http 包
 	"net/url"
 	"os"
 	"path"
-	"strconv" // 【新增】
 
 	"github.com/Slade66/parallel-fetcher/internal/downloader"
-	"github.com/Slade66/parallel-fetcher/internal/observer" // 【新增】导入 observer 包
+	"github.com/Slade66/parallel-fetcher/internal/observer"
+	"github.com/Slade66/parallel-fetcher/pkg/fileinfo"
 )
 
 func main() {
-	// ... (参数解析部分保持不变) ...
+	// 1. 参数解析
 	urlStr := flag.String("url", "", "要下载的文件的 URL (必须)")
 	output := flag.String("output", "", "文件保存路径 (如果为空，则从URL中自动提取)")
 	threads := flag.Int("threads", 10, "下载时使用的线程数")
 	flag.Parse()
 
+	// 2. 参数校验和文件名处理
 	if *urlStr == "" {
 		fmt.Println("错误: -url 参数是必须的")
 		flag.Usage()
@@ -38,34 +38,24 @@ func main() {
 			log.Fatalf("❌ 无法从URL [%s] 中自动提取有效的文件名，请使用 -output 参数手动指定。", *urlStr)
 		}
 		*output = filename
-		// 这行提示可以被进度条覆盖，所以可以注释掉
-		// fmt.Printf("ℹ️ 未指定输出文件名，将自动使用: %s\n", *output)
 	}
 
-	// 【修改】为了创建进度条，我们需要提前获取文件总大小
+	// 3. 获取文件信息 (使用新包)
 	fmt.Println("🔎 正在获取文件信息...")
-	resp, err := http.Head(*urlStr)
+	info, err := fileinfo.Get(*urlStr)
 	if err != nil {
-		log.Fatalf("❌ 无法获取文件信息: %v", err)
-	}
-	defer resp.Body.Close()
-
-	contentLengthStr := resp.Header.Get("Content-Length")
-	if contentLengthStr == "" {
-		log.Fatalf("❌ 无法获取文件大小 (Content-Length is missing)")
-	}
-	totalSize, err := strconv.ParseInt(contentLengthStr, 10, 64)
-	if err != nil {
-		log.Fatalf("❌ 无效的文件大小: %v", err)
+		log.Fatalf("❌ %v", err)
 	}
 
-	// 【修改】创建下载器和观察者，并进行注册
-	d := downloader.New(*urlStr, *output, *threads)
-	progressBar := observer.NewProgressBarObserver(totalSize)
-	d.AddObserver(progressBar) // 将进度条观察者注册到下载器
+	// 4. 创建下载器和观察者
+	d := downloader.New(*urlStr, *output, *threads, info.Size, info.AcceptsRanges)
+	progressBar := observer.NewProgressBarObserver(info.Size)
+	d.AddObserver(progressBar)
 
+	// 5. 启动下载
+	fmt.Println("🚀 开始下载...")
 	if err := d.Run(); err != nil {
-		// 使用 log.Fatal 来打印错误并退出程序
 		log.Fatalf("\n❌ 下载过程中发生严重错误: %v", err)
 	}
+	fmt.Println("✅ 文件下载并合并完成！")
 }
