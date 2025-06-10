@@ -3,6 +3,7 @@ package downloader
 
 import (
 	"fmt"
+	"github.com/Slade66/parallel-fetcher/internal/client"
 	"io"
 	"net/http"
 	"os"
@@ -45,8 +46,8 @@ func New(url, output string, threads int) *Downloader {
 		url:       url,
 		output:    output,
 		threads:   threads,
-		client:    &http.Client{},
-		observers: make([]observer.Observer, 0), // 【新增】初始化列表
+		client:    client.GetClient(),
+		observers: make([]observer.Observer, 0),
 	}
 }
 
