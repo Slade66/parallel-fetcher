@@ -1,3 +1,4 @@
+// internal/downloader/downloader.go
 package downloader
 
 import (
@@ -8,7 +9,24 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+
+	"github.com/Slade66/parallel-fetcher/internal/observer" // 【新增】导入 observer 包
 )
+
+// 【新增】ProgressReader 用于包装 io.Reader 来跟踪进度
+type ProgressReader struct {
+	io.Reader
+	onProgress func(int64)
+}
+
+// Read 实现 io.Reader 接口
+func (pr *ProgressReader) Read(p []byte) (n int, err error) {
+	n, err = pr.Reader.Read(p)
+	if n > 0 {
+		pr.onProgress(int64(n)) // 每次读取后调用回调函数
+	}
+	return
+}
 
 // Downloader 结构体封装了下载任务的所有信息
 type Downloader struct {
@@ -16,17 +34,35 @@ type Downloader struct {
 	output     string
 	threads    int
 	contentLen int64
-	// 使用一个 http.Client 以便未来可以自定义配置 (例如超时)
-	client *http.Client
+	client     *http.Client
+	observers  []observer.Observer // 【新增】观察者列表
+	mu         sync.Mutex          // 【新增】用于保护观察者列表的互斥锁
 }
 
 // New 创建一个新的 Downloader 实例
 func New(url, output string, threads int) *Downloader {
 	return &Downloader{
-		url:     url,
-		output:  output,
-		threads: threads,
-		client:  &http.Client{},
+		url:       url,
+		output:    output,
+		threads:   threads,
+		client:    &http.Client{},
+		observers: make([]observer.Observer, 0), // 【新增】初始化列表
+	}
+}
+
+// 【新增】AddObserver 实现了 Observable 接口，用于添加观察者
+func (d *Downloader) AddObserver(o observer.Observer) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.observers = append(d.observers, o)
+}
+
+// 【新增】Notify 实现了 Observable 接口，用于通知所有观察者
+func (d *Downloader) Notify(downloaded int64) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, obs := range d.observers {
+		obs.Update(downloaded)
 	}
 }
 
@@ -62,8 +98,8 @@ func (d *Downloader) Run() error {
 	if err != nil {
 		return fmt.Errorf("无法创建临时目录: %w", err)
 	}
-	// 使用 defer 来确保临时目录在任务结束时被清理
 	defer os.RemoveAll(tempDir)
+	// 临时文件目录信息可以不打印，让界面更干净
 	fmt.Printf("临时文件目录: %s\n", tempDir)
 
 	// 2. 计算分片并并发下载
@@ -74,7 +110,6 @@ func (d *Downloader) Run() error {
 		start := int64(i) * blockSize
 		end := start + blockSize - 1
 
-		// 最后一个分片需要包含所有剩余的字节
 		if i == d.threads-1 {
 			end = d.contentLen - 1
 		}
@@ -85,7 +120,8 @@ func (d *Downloader) Run() error {
 			partPath := filepath.Join(tempDir, fmt.Sprintf("part-%d", partNum))
 			err := d.downloadPart(partPath, start, end)
 			if err != nil {
-				fmt.Printf("❌ 下载分片 %d 失败: %v\n", partNum, err)
+				// 错误信息换行打印，避免破坏进度条
+				fmt.Printf("\n❌ 下载分片 %d 失败: %v\n", partNum, err)
 			}
 		}(i, start, end)
 	}
@@ -126,15 +162,22 @@ func (d *Downloader) downloadPart(partPath string, start, end int64) error {
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, resp.Body)
+	// 【修改】使用 ProgressReader 包装原始的响应体
+	progressReader := &ProgressReader{
+		Reader: resp.Body,
+		onProgress: func(downloaded int64) {
+			d.Notify(downloaded) // 关键：在读取到数据时，通知观察者
+		},
+	}
+
+	// 【修改】从 progressReader 复制数据，而不是直接从 resp.Body
+	_, err = io.Copy(file, progressReader)
 	if err != nil {
 		return err
 	}
-	// fmt.Printf("分片 %s 下载完成\n", filepath.Base(partPath)) // 可以取消注释来查看每个分片的完成情况
 	return nil
 }
 
-// mergeFiles 合并临时目录中的所有分片文件到最终的输出文件
 func (d *Downloader) mergeFiles(tempDir string) error {
 	outFile, err := os.Create(d.output)
 	if err != nil {
@@ -146,13 +189,11 @@ func (d *Downloader) mergeFiles(tempDir string) error {
 		partPath := filepath.Join(tempDir, fmt.Sprintf("part-%d", i))
 		partFile, err := os.Open(partPath)
 		if err != nil {
-			// 如果某个分片文件打不开，说明下载可能出了问题
-			// 这里简单返回错误，也可以实现更复杂的逻辑
 			return err
 		}
 
 		_, err = io.Copy(outFile, partFile)
-		partFile.Close() // 及时关闭文件句柄
+		partFile.Close()
 		if err != nil {
 			return err
 		}
