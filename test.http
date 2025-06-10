@@ -1,0 +1,11 @@
+### 提交一个新的下载任务
+POST http://localhost:8080/download
+Content-Type: application/json
+
+{
+  "url": "https://go.dev/dl/go1.22.4.linux-amd64.tar.gz",
+  "output_path": "./go_from_goland.tar.gz",
+  "threads": 16
+}
+
+###
