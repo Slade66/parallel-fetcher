@@ -3,98 +3,51 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
-	"net/http"
+	"log"
+	"net/url"
 	"os"
-	"strconv"
-	"sync"
+	"path"
+
+	"github.com/Slade66/parallel-fetcher/internal/downloader"
 )
 
 func main() {
-	url := flag.String("url", "", "-url 下载地址")
-	output := flag.String("output", "", "-output 保存路径")
-	threads := flag.Int("threads", 10, "-threads 下载时使用的线程数")
+	// 1. 解析命令行参数
+	// 为了避免和标准库的 url 包名冲突，将变量名从 url 改为 urlStr
+	urlStr := flag.String("url", "", "要下载的文件的 URL (必须)")
+	// 更新了 output 参数的描述信息
+	output := flag.String("output", "", "文件保存路径 (如果为空，则从URL中自动提取)")
+	threads := flag.Int("threads", 10, "下载时使用的线程数")
 	flag.Parse()
-	println(*url, *output, *threads)
 
-	resp, err := http.Head(*url)
-	if err != nil {
-		fmt.Println(err)
-		return
+	// 2. 校验和处理参数
+	if *urlStr == "" {
+		fmt.Println("错误: -url 参数是必须的")
+		flag.Usage()
+		os.Exit(1)
 	}
-	defer resp.Body.Close()
 
-	contentLength, err := strconv.Atoi(resp.Header.Get("Content-Length"))
-	fmt.Println("Content-Length:", contentLength)
-
-	acceptRanges := resp.Header.Get("Accept-Ranges")
-	fmt.Println("Accept-Ranges:", acceptRanges)
-
-	var ranges []string
-	blockSize := contentLength / *threads
-	for i, start := 0, 0; i < *threads; i++ {
-		end := blockSize*(i+1) - 1
-		if i == *threads-1 {
-			end = contentLength - 1
+	// 如果 -output 参数为空，则从 URL 中自动提取文件名
+	if *output == "" {
+		parsedURL, err := url.Parse(*urlStr)
+		if err != nil {
+			// 如果 URL 本身就有问题，直接报错退出
+			log.Fatalf("❌ 无法解析提供的URL: %v", err)
 		}
-		rang := fmt.Sprintf("bytes=%d-%d", start, end)
-		start = end + 1
-		ranges = append(ranges, rang)
-	}
-	fmt.Println(blockSize, ranges)
-
-	var wg sync.WaitGroup
-	for index, rang := range ranges {
-		wg.Add(1)
-		go func(index int, rang string) {
-			defer wg.Done()
-
-			// 创建 GET 请求，带上 Range 头
-			req, err := http.NewRequest("GET", *url, nil)
-			if err != nil {
-				fmt.Println("请求失败: ", err)
-				return
-			}
-			req.Header.Set("Range", rang)
-
-			// 发送请求
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				fmt.Println("下载失败: ", err)
-				return
-			}
-			defer resp.Body.Close()
-
-			// 每个线程单独写文件
-			filename := fmt.Sprintf("part-%d", index)
-			file, err := os.Create(filename)
-			if err != nil {
-				fmt.Println("无法创建文件: ", err)
-				return
-			}
-			defer file.Close()
-
-			// 直接复制响应体到文件
-			_, err = io.Copy(file, resp.Body)
-			if err != nil {
-				fmt.Println("写文件失败: ", err)
-				return
-			}
-
-			fmt.Printf("线程 %d 下载完成！\n", index)
-		}(index, rang)
-	}
-	wg.Wait()
-
-	outFile, _ := os.Create(*output)
-	defer outFile.Close()
-	for index := range ranges {
-		partName := fmt.Sprintf("part-%d", index)
-		partFile, _ := os.Open(partName)
-		defer partFile.Close()
-
-		io.Copy(outFile, partFile)
+		// 使用 path.Base 获取 URL 路径的最后一部分
+		filename := path.Base(parsedURL.Path)
+		// 做一个简单的检查，防止 URL 以 "/" 结尾导致文件名为空或 "."
+		if filename == "" || filename == "." || filename == "/" {
+			log.Fatalf("❌ 无法从URL [%s] 中自动提取有效的文件名，请使用 -output 参数手动指定。", *urlStr)
+		}
+		*output = filename
+		fmt.Printf("ℹ️ 未指定输出文件名，将自动使用: %s\n", *output)
 	}
 
-	fmt.Printf("合并完成！")
+	// 3. 创建并运行下载器
+	d := downloader.New(*urlStr, *output, *threads)
+	if err := d.Run(); err != nil {
+		// 使用 log.Fatal 来打印错误并退出程序
+		log.Fatalf("❌ 下载过程中发生严重错误: %v", err)
+	}
 }
