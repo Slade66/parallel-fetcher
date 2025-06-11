@@ -116,15 +116,20 @@ func main() {
 	// 设置 Gin
 	router := gin.Default()
 
-	// 新增：为 API 路由创建一个分组
+	// 1. 将所有 API 路由分组到 /api 路径下
 	api := router.Group("/api")
 	{
 		api.POST("/download", downloadHandler)
 		api.GET("/tasks", getTasksHandler)
 	}
 
-	// 新增：服务前端静态文件
-	router.StaticFS("/", http.Dir("./frontend"))
+	// 2. 将所有静态文件（如css, js）的请求，都指向 frontend 目录
+	router.Static("/static", "./frontend")
+
+	// 3. 当用户直接访问根路径 "/" 时，返回 index.html
+	router.GET("/", func(c *gin.Context) {
+		c.File("./frontend/index.html")
+	})
 
 	fmt.Println("🚀 API 服务已启动，监听端口 :8080")
 	router.Run(":8080")
