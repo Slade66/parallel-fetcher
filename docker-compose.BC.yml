@@ -12,6 +12,11 @@ services:
       # 确保这里的 IP 是机器 A 的正确 IP 地址
       - REDIS_ADDR=<MACHINE_A_IP>:6379
       - REDIS_PASSWORD=123456
+      - # --- OBS 配置 ---
+      - OBS_ENDPOINT=obs.ap-southeast-1.myhuaweicloud.com
+      - OBS_AK=YOUR_ACCESS_KEY_ID
+      - OBS_SK=YOUR_SECRET_ACCESS_KEY
+      - OBS_BUCKET=parallel-fetcher
     volumes:
       # ✨ 修改点: 将主机的 NFS 挂载点 /data/downloads 映射到容器内部
       - /data/downloads:/app/downloads

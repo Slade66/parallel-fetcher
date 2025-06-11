@@ -35,9 +35,14 @@ services:
       target: worker
     hostname: worker-on-a
     environment:
-      # ✨ 修正点: 同样使用服务名 'redis'
+      # --- 原有的 Redis 配置 ---
       - REDIS_ADDR=redis:6379
       - REDIS_PASSWORD=123456
+      # --- ✨ 新增的 OBS 配置 ---
+      - OBS_ENDPOINT=obs.ap-southeast-1.myhuaweicloud.com
+      - OBS_AK=YOUR_ACCESS_KEY_ID
+      - OBS_SK=YOUR_SECRET_ACCESS_KEY
+      - OBS_BUCKET=parallel-fetcher
     volumes:
       - /data/downloads:/app/downloads
     depends_on:

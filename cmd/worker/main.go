@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Slade66/parallel-fetcher/internal/downloader"
+	"github.com/Slade66/parallel-fetcher/internal/uploader" // 新增
 	"github.com/Slade66/parallel-fetcher/pkg/fileinfo"
 	"github.com/Slade66/parallel-fetcher/pkg/task"
 	"log"
@@ -28,6 +29,7 @@ const (
 )
 
 var RedisClient *redis.Client
+var obsUploader *uploader.ObsUploader // 新增：全局 uploader 实例
 
 // 初始化 Redis 连接 (与 API 服务中的代码类似)
 func initRedis() {
@@ -128,15 +130,15 @@ func processTasks(ctx context.Context) {
 	}
 }
 
-// executeDownload 负责调用你现有的下载器来执行单个下载任务
+// executeDownload 负责调用下载器
+// 修改：将 obsUploader 传递给 downloader.New
 func executeDownload(t *task.DownloadTask) error {
 	log.Printf("🔎 正在获取文件信息: %s", t.URL)
-	info, err := fileinfo.Get(t.URL) //
+	info, err := fileinfo.Get(t.URL)
 	if err != nil {
 		return fmt.Errorf("获取文件信息失败: %w", err)
 	}
 
-	// 对客户端建议的线程数进行校验
 	actualThreads := t.Threads
 	if actualThreads <= 0 {
 		actualThreads = DefaultThreads
@@ -145,23 +147,38 @@ func executeDownload(t *task.DownloadTask) error {
 		actualThreads = MaxAllowedThreads
 	}
 
-	log.Printf("🚀 准备下载. URL: %s, 输出路径: %s, 线程数: %d", t.URL, t.OutputPath, actualThreads)
+	log.Printf("🚀 准备下载. URL: %s, OBS对象键: %s, 线程数: %d", t.URL, t.OutputPath, actualThreads)
 
-	// 创建下载器实例
-	d := downloader.New(t.URL, t.OutputPath, actualThreads, info.Size, info.AcceptsRanges)
+	// 创建下载器实例时，传入 obsUploader
+	d := downloader.New(t.URL, t.OutputPath, actualThreads, info.Size, info.AcceptsRanges, obsUploader)
 
-	// 重要：在 Worker 服务中，我们不再使用终端进度条观察者。
-	// 所有的进度和状态都应该通过日志来记录。
-	// d.AddObserver(progressBar) // 这一行被移除
-
-	// 启动下载流程
-	return d.Run() //
+	return d.Run()
 }
 
 func main() {
-	// 初始化
+	// 初始化 Redis
 	initRedis()
 	ctx := context.Background()
+
+	// 新增：初始化 OBS Uploader
+	obsEndpoint := os.Getenv("OBS_ENDPOINT")
+	obsAk := os.Getenv("OBS_AK")
+	obsSk := os.Getenv("OBS_SK")
+	obsBucket := os.Getenv("OBS_BUCKET")
+
+	if obsEndpoint == "" || obsAk == "" || obsSk == "" || obsBucket == "" {
+		log.Fatalf("❌ OBS 配置不完整，请检查环境变量 OBS_ENDPOINT, OBS_AK, OBS_SK, OBS_BUCKET")
+	}
+
+	var err error
+	obsUploader, err = uploader.NewObsUploader(obsEndpoint, obsAk, obsSk, obsBucket)
+	if err != nil {
+		log.Fatalf("❌ 初始化 OBS Uploader 失败: %v", err)
+	}
+	defer obsUploader.Close() // 确保程序退出时关闭客户端
+	log.Println("✅ OBS Uploader 初始化成功。")
+
+	// 确保消费者组存在
 	ensureConsumerGroup(ctx)
 
 	// 启动主处理循环
