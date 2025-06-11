@@ -23,9 +23,12 @@
 
 ### 阶段三：最终的 docker-compose 文件 (就地构建版)
 
+### 阶段四：安装 Docker
 
+* `chmod +x install_docker.sh`
+* `sudo ./install_docker.sh`
 
-### 阶段四：启动与验证
+### 阶段五：启动与验证
 
 在机器 A 上 (进入项目目录后执行): `docker-compose -f docker-compose.A.yml up --build -d`
 
