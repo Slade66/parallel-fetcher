@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Redis 服务
+  redis:
+    image: 'redis:alpine'
+    hostname: redis-on-a
+    command: redis-server --requirepass 123456
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  # API 服务
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    hostname: api-on-a
+    ports:
+      - "8080:8080"
+    environment:
+      # ✨ 修正点: 使用服务名 'redis' 进行内部通信
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=123456
+    depends_on:
+      - redis
+
+  # 机器 A 上运行的 Worker 服务
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    hostname: worker-on-a
+    environment:
+      # ✨ 修正点: 同样使用服务名 'redis'
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=123456
+    volumes:
+      - /data/downloads:/app/downloads
+    depends_on:
+      - redis
+
+volumes:
+  redis-data:

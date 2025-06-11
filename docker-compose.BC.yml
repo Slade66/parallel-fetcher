@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  # 机器 B 或 C 上运行的 Worker 服务
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    hostname: worker-on-bc
+    environment:
+      # 确保这里的 IP 是机器 A 的正确 IP 地址
+      - REDIS_ADDR=<MACHINE_A_IP>:6379
+      - REDIS_PASSWORD=123456
+    volumes:
+      # ✨ 修改点: 将主机的 NFS 挂载点 /data/downloads 映射到容器内部
+      - /data/downloads:/app/downloads
