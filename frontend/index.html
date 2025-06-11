@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分布式下载器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <h1>分布式下载任务提交</h1>
+    <form id="task-form">
+        <input type="url" id="url-input" placeholder="请输入要下载的文件的完整 URL" required>
+        <button type="submit">提交任务</button>
+    </form>
+
+    <h2>任务列表</h2>
+    <div id="task-list">
+        <p>正在加载任务列表...</p>
+    </div>
+</div>
+<script src="script.js"></script>
+</body>
+</html>

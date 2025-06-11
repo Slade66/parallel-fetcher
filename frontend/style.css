@@ -1,0 +1,103 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f4f7f9;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 20px 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+h1, h2 {
+    color: #2c3e50;
+    border-bottom: 1px solid #eaecee;
+    padding-bottom: 10px;
+}
+
+#task-form {
+    display: flex;
+    margin-bottom: 30px;
+    gap: 10px;
+}
+
+#url-input {
+    flex-grow: 1;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+#url-input:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+    outline: none;
+}
+
+#task-form button {
+    padding: 12px 20px;
+    border: none;
+    background-color: #3498db;
+    color: white;
+    font-size: 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#task-form button:hover {
+    background-color: #2980b9;
+}
+
+.task-item {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border: 1px solid #eaecee;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 15px;
+    align-items: center;
+}
+
+.task-item .url {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    word-break: break-all;
+}
+
+.task-item .status {
+    font-weight: bold;
+    padding: 5px 12px;
+    border-radius: 15px;
+    color: white;
+    font-size: 12px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.status-queued {
+    background-color: #95a5a6;
+}
+
+.status-processing {
+    background-color: #f39c12;
+}
+
+.status-completed {
+    background-color: #2ecc71;
+}
+
+.status-failed {
+    background-color: #e74c3c;
+}
