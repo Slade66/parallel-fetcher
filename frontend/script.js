@@ -17,10 +17,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 自动从 URL 末尾提取文件名作为 OBS 对象键的一部分
-        const filename = url.substring(url.lastIndexOf('/') + 1);
+        const filename = url.substring(url.lastIndexOf('/') + 1) || 'unknown_file'; // 确保总有个文件名
+        // 确保 output_path 符合后端预期，作为 OBS 对象键
+        const outputPath = `/app/downloads/${filename}`; // 假设 /app/downloads 是共享存储的挂载点
+
         const taskData = {
             url: url,
-            output_path: `/app/downloads/${filename || 'unknown_file'}`,
+            output_path: outputPath, // 使用从 URL 提取的文件名作为 output_path
             threads: 8 // 可以使用默认值
         };
 
@@ -69,8 +72,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusClass = `status-${task.status || 'queued'}`;
             const statusText = task.status || '排队中';
 
+            // 从 output_path 中提取文件名作为显示名称
+            // task.output_path 应该像 "/app/downloads/your_file.zip"
+            const displayFileName = task.output_path ? task.output_path.substring(task.output_path.lastIndexOf('/') + 1) : '未知文件';
+
             taskElement.innerHTML = `
-                <div class="url" title="${task.url}">${task.url}</div>
+                <div class="url" title="${task.url}">${displayFileName}</div>
                 <div class="status ${statusClass}">${statusText}</div>
             `;
             taskListDiv.appendChild(taskElement);

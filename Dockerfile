@@ -2,7 +2,7 @@
 
 # ---- Stage 1: Builder ----
 # 使用 Go 镜像来编译你的代码
-FROM golang:1.22 AS builder # 建议使用稳定版本，例如 1.22，与你项目文件中的版本保持一致
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download

@@ -11,8 +11,10 @@ import (
 
 // StatusInfo 定义了任务状态的详细信息，用于JSON序列化
 type StatusInfo struct {
-	ID         string `json:"id"`
-	URL        string `json:"url"`
+	ID  string `json:"id"`
+	URL string `json:"url"`
+	// 新增 OutputPath 字段
+	OutputPath string `json:"output_path"`
 	Status     string `json:"status"`
 	SubmitTime string `json:"submit_time"`
 	FinishTime string `json:"finish_time,omitempty"`
@@ -40,6 +42,7 @@ func (m *Manager) InitTaskStatus(ctx context.Context, t *task.DownloadTask) erro
 	status := StatusInfo{
 		ID:         t.ID.String(),
 		URL:        t.URL,
+		OutputPath: t.OutputPath, // 将 OutputPath 保存到状态中
 		Status:     "queued",
 		SubmitTime: time.Now().UTC().Format(time.RFC3339),
 	}
@@ -103,6 +106,7 @@ func (m *Manager) GetAllTasks(ctx context.Context) ([]StatusInfo, error) {
 		tasks = append(tasks, StatusInfo{
 			ID:         data["ID"],
 			URL:        data["URL"],
+			OutputPath: data["OutputPath"], // 从 Redis 中读取 OutputPath
 			Status:     data["Status"],
 			SubmitTime: data["SubmitTime"],
 			FinishTime: data["FinishTime"],
