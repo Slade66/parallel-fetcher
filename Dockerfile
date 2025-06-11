@@ -1,6 +1,6 @@
 # ---- Stage 1: Builder ----
 # 使用 Go 镜像来编译你的代码
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download

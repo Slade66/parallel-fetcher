@@ -30,7 +30,10 @@
 
 ### 阶段五：启动与验证
 
-在机器 A 上 (进入项目目录后执行): `docker-compose -f docker-compose.A.yml up --build -d`
+在机器 A 上 (进入项目目录后执行): `docker compose -f docker-compose.A.yml up --build -d`
 
-在机器 B 和 C 上 (分别进入项目目录后执行): `docker-compose -f docker-compose.BC.yml up --build -d`
+在机器 B 和 C 上 (分别进入项目目录后执行): `docker compose -f docker-compose.BC.yml up --build -d`
 
+### 阶段六：监听
+
+`docker compose -f docker-compose.BC.yml logs -f worker`
