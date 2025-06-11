@@ -103,13 +103,13 @@ func (m *Manager) GetAllTasks(ctx context.Context) ([]StatusInfo, error) {
 		}
 
 		tasks = append(tasks, StatusInfo{
-			ID:         data["ID"],
-			URL:        data["URL"],
+			ID:         data["id"],
+			URL:        data["url"],
 			OutputPath: data["output_path"],
-			Status:     data["Status"],
-			SubmitTime: data["SubmitTime"],
-			FinishTime: data["FinishTime"],
-			Error:      data["Error"],
+			Status:     data["status"],
+			SubmitTime: data["submit_time"],
+			FinishTime: data["finish_time"],
+			Error:      data["error"],
 		})
 	}
 	return tasks, nil
